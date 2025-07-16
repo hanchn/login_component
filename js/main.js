@@ -21,6 +21,64 @@ class LoginApp {
         console.log('社交登录模块初始化完成');
     }
     
+    // 修复bindTabEvents方法
+    bindTabEvents() {
+        // 绑定登录方式切换标签
+        const loginTabs = document.querySelectorAll('.login-tab');
+        
+        if (loginTabs.length > 0) {
+            loginTabs.forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    // 修复：使用data-type而不是data-tab
+                    const tabType = e.target.dataset.type;
+                    this.switchLoginTab(tabType);
+                });
+            });
+        }
+    }
+    
+    // 修复切换登录标签方法
+    switchLoginTab(tabType) {
+        this.currentTab = tabType;
+        
+        // 更新标签状态
+        document.querySelectorAll('.login-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // 修复：使用data-type而不是data-tab
+        const activeTab = document.querySelector(`[data-type="${tabType}"]`);
+        if (activeTab) {
+            activeTab.classList.add('active');
+        }
+        
+        // 显示对应的登录区域
+        document.querySelectorAll('.login-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        
+        // 修复：根据实际的section ID映射
+        let sectionId;
+        switch(tabType) {
+            case 'password':
+                sectionId = 'passwordSection';
+                break;
+            case 'social':
+                sectionId = 'socialSection';
+                break;
+            case 'qr':
+                sectionId = 'qrSection';
+                break;
+            default:
+                sectionId = 'passwordSection';
+        }
+        
+        const targetSection = document.getElementById(sectionId);
+        if (targetSection) {
+            targetSection.classList.add('active');
+        }
+    }
+    
     bindConfigEvents() {
         const configBtn = document.getElementById('configBtn');
         const configModal = document.getElementById('configModal');
