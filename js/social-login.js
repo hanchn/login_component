@@ -1,22 +1,36 @@
-// 社交登录管理
+// 社交登录管理 - 重构版本
 class SocialLogin {
     constructor() {
-        this.providers = {
-            wechat: this.wechatLogin.bind(this),
-            alipay: this.alipayLogin.bind(this),
-            google: this.googleLogin.bind(this),
-            github: this.githubLogin.bind(this),
-            weibo: this.weiboLogin.bind(this),
-            qq: this.qqLogin.bind(this),
-            facebook: this.facebookLogin.bind(this),
-            twitter: this.twitterLogin.bind(this)
-        };
-        
+        this.providers = {};
         this.init();
     }
     
     init() {
+        this.loadProviders();
         this.bindEvents();
+    }
+    
+    // 动态加载所有提供商
+    loadProviders() {
+        const providerClasses = {
+            wechat: 'WechatProvider',
+            alipay: 'AlipayProvider', 
+            google: 'GoogleProvider',
+            github: 'GithubProvider',
+            weibo: 'WeiboProvider',
+            qq: 'QQProvider',
+            facebook: 'FacebookProvider',
+            twitter: 'TwitterProvider'
+        };
+        
+        Object.keys(providerClasses).forEach(key => {
+            const ProviderClass = window[providerClasses[key]];
+            if (ProviderClass) {
+                this.providers[key] = new ProviderClass();
+            } else {
+                console.warn(`${providerClasses[key]} 未加载`);
+            }
+        });
     }
     
     bindEvents() {
@@ -39,9 +53,15 @@ class SocialLogin {
             return;
         }
         
+        const providerInstance = this.providers[provider];
+        if (!providerInstance) {
+            this.showMessage(`${provider}登录提供商未找到`, 'error');
+            return;
+        }
+        
         try {
             this.showLoading(provider);
-            const result = await this.providers[provider](config);
+            const result = await providerInstance.login(config);
             this.handleLoginResult(provider, result);
         } catch (error) {
             console.error(`${provider}登录失败:`, error);
@@ -49,229 +69,6 @@ class SocialLogin {
         } finally {
             this.hideLoading(provider);
         }
-    }
-    
-    // 微信登录
-    async wechatLogin(config) {
-        return new Promise((resolve, reject) => {
-            // 微信登录逻辑
-            const authUrl = `https://open.weixin.qq.com/connect/qrconnect?appid=${config.appId}&redirect_uri=${encodeURIComponent(config.redirectUri)}&response_type=code&scope=snsapi_login&state=wechat_login`;
-            
-            const popup = window.open(authUrl, 'wechat_login', 'width=600,height=600,scrollbars=yes,resizable=yes');
-            
-            const checkClosed = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkClosed);
-                    reject(new Error('用户取消登录'));
-                }
-            }, 1000);
-            
-            // 监听消息
-            window.addEventListener('message', function handler(event) {
-                if (event.origin !== window.location.origin) return;
-                
-                if (event.data.type === 'wechat_login_success') {
-                    clearInterval(checkClosed);
-                    popup.close();
-                    window.removeEventListener('message', handler);
-                    resolve(event.data.userInfo);
-                } else if (event.data.type === 'wechat_login_error') {
-                    clearInterval(checkClosed);
-                    popup.close();
-                    window.removeEventListener('message', handler);
-                    reject(new Error(event.data.error));
-                }
-            });
-        });
-    }
-    
-    // 支付宝登录
-    async alipayLogin(config) {
-        return new Promise((resolve, reject) => {
-            const authUrl = `https://openauth.alipay.com/oauth2/publicAppAuthorize.htm?app_id=${config.appId}&scope=auth_user&redirect_uri=${encodeURIComponent(config.redirectUri)}&state=alipay_login`;
-            
-            const popup = window.open(authUrl, 'alipay_login', 'width=600,height=600,scrollbars=yes,resizable=yes');
-            
-            const checkClosed = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkClosed);
-                    reject(new Error('用户取消登录'));
-                }
-            }, 1000);
-            
-            // 模拟登录成功
-            setTimeout(() => {
-                clearInterval(checkClosed);
-                popup.close();
-                resolve({
-                    nickname: '支付宝用户',
-                    avatar: 'https://via.placeholder.com/50',
-                    userId: 'alipay_user_123'
-                });
-            }, 2000);
-        });
-    }
-    
-    // Google登录
-    async googleLogin(config) {
-        return new Promise((resolve, reject) => {
-            const authUrl = `https://accounts.google.com/oauth/authorize?client_id=${config.clientId}&redirect_uri=${encodeURIComponent(config.redirectUri)}&scope=openid%20profile%20email&response_type=code&state=google_login`;
-            
-            const popup = window.open(authUrl, 'google_login', 'width=600,height=600,scrollbars=yes,resizable=yes');
-            
-            const checkClosed = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkClosed);
-                    reject(new Error('用户取消登录'));
-                }
-            }, 1000);
-            
-            // 模拟登录成功
-            setTimeout(() => {
-                clearInterval(checkClosed);
-                popup.close();
-                resolve({
-                    nickname: 'Google用户',
-                    avatar: 'https://via.placeholder.com/50',
-                    email: 'user@gmail.com'
-                });
-            }, 2000);
-        });
-    }
-    
-    // GitHub登录
-    async githubLogin(config) {
-        return new Promise((resolve, reject) => {
-            const authUrl = `https://github.com/login/oauth/authorize?client_id=${config.clientId}&redirect_uri=${encodeURIComponent(config.redirectUri)}&scope=user:email&state=github_login`;
-            
-            const popup = window.open(authUrl, 'github_login', 'width=600,height=600,scrollbars=yes,resizable=yes');
-            
-            const checkClosed = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkClosed);
-                    reject(new Error('用户取消登录'));
-                }
-            }, 1000);
-            
-            // 模拟登录成功
-            setTimeout(() => {
-                clearInterval(checkClosed);
-                popup.close();
-                resolve({
-                    nickname: 'GitHub用户',
-                    avatar: 'https://via.placeholder.com/50',
-                    username: 'github_user'
-                });
-            }, 2000);
-        });
-    }
-    
-    // 微博登录
-    async weiboLogin(config) {
-        return new Promise((resolve, reject) => {
-            const authUrl = `https://api.weibo.com/oauth2/authorize?client_id=${config.appKey}&redirect_uri=${encodeURIComponent(config.redirectUri)}&response_type=code&state=weibo_login`;
-            
-            const popup = window.open(authUrl, 'weibo_login', 'width=600,height=600,scrollbars=yes,resizable=yes');
-            
-            const checkClosed = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkClosed);
-                    reject(new Error('用户取消登录'));
-                }
-            }, 1000);
-            
-            // 模拟登录成功
-            setTimeout(() => {
-                clearInterval(checkClosed);
-                popup.close();
-                resolve({
-                    nickname: '微博用户',
-                    avatar: 'https://via.placeholder.com/50',
-                    uid: 'weibo_user_123'
-                });
-            }, 2000);
-        });
-    }
-    
-    // QQ登录
-    async qqLogin(config) {
-        return new Promise((resolve, reject) => {
-            const authUrl = `https://graph.qq.com/oauth2.0/authorize?response_type=code&client_id=${config.appId}&redirect_uri=${encodeURIComponent(config.redirectUri)}&state=qq_login&scope=get_user_info`;
-            
-            const popup = window.open(authUrl, 'qq_login', 'width=600,height=600,scrollbars=yes,resizable=yes');
-            
-            const checkClosed = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkClosed);
-                    reject(new Error('用户取消登录'));
-                }
-            }, 1000);
-            
-            // 模拟登录成功
-            setTimeout(() => {
-                clearInterval(checkClosed);
-                popup.close();
-                resolve({
-                    nickname: 'QQ用户',
-                    avatar: 'https://via.placeholder.com/50',
-                    openid: 'qq_user_123'
-                });
-            }, 2000);
-        });
-    }
-    
-    // Facebook登录
-    async facebookLogin(config) {
-        return new Promise((resolve, reject) => {
-            const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${config.appId}&redirect_uri=${encodeURIComponent(config.redirectUri)}&scope=email,public_profile&response_type=code&state=facebook_login`;
-            
-            const popup = window.open(authUrl, 'facebook_login', 'width=600,height=600,scrollbars=yes,resizable=yes');
-            
-            const checkClosed = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkClosed);
-                    reject(new Error('用户取消登录'));
-                }
-            }, 1000);
-            
-            // 模拟登录成功
-            setTimeout(() => {
-                clearInterval(checkClosed);
-                popup.close();
-                resolve({
-                    nickname: 'Facebook用户',
-                    avatar: 'https://via.placeholder.com/50',
-                    email: 'user@facebook.com'
-                });
-            }, 2000);
-        });
-    }
-    
-    // Twitter登录
-    async twitterLogin(config) {
-        return new Promise((resolve, reject) => {
-            const authUrl = `https://api.twitter.com/oauth/authenticate?oauth_token=${config.apiKey}&oauth_callback=${encodeURIComponent(config.redirectUri)}`;
-            
-            const popup = window.open(authUrl, 'twitter_login', 'width=600,height=600,scrollbars=yes,resizable=yes');
-            
-            const checkClosed = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkClosed);
-                    reject(new Error('用户取消登录'));
-                }
-            }, 1000);
-            
-            // 模拟登录成功
-            setTimeout(() => {
-                clearInterval(checkClosed);
-                popup.close();
-                resolve({
-                    nickname: 'Twitter用户',
-                    avatar: 'https://via.placeholder.com/50',
-                    username: 'twitter_user'
-                });
-            }, 2000);
-        });
     }
     
     // 显示加载状态
